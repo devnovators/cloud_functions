@@ -40,7 +40,7 @@ exports.syncKudo = functions.database.ref('/events/{eventID}/users/{userID}/feed
     var _userID=event.params.userID;
     var _kudoID=event.params.kudoID;
     /* Debo identificar el kudo y contar todos los kudos registrados hasta el momento */
-    let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/kudos/'+ _kudoID);
+    let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/statKudos/'+ _kudoID);
 
     return collectionRef.transaction(current => {
         if (event.data.exists() && !event.data.previous.exists()) {
@@ -53,52 +53,45 @@ exports.syncKudo = functions.database.ref('/events/{eventID}/users/{userID}/feed
     ).then(()=> {console.log('Contador KUDOS actualizado')});
 });
 
-exports.syncRating = functions.database.ref('/events/{eventID}/users/{userID}/feedback/{blockID}/{cardID}/rating/{numStars}')
+exports.syncRating = functions.database.ref('/events/{eventID}/users/{userID}/feedback/{blockID}/{cardID}/rating')
 .onWrite(event => {
     console.info("eventID: " + event.params.eventID); 
     console.info("blockID: " + event.params.blockID);
     console.info("cardID:  " + event.params.cardID);
-    console.info("kudoID:  " + event.params.kudoID);
+    console.info("userID:  " + event.params.userID);
     var _eventID=event.params.eventID;
     var _blockID=event.params.blockID;
     var _cardID=event.params.cardID;
     var _userID=event.params.userID;
-    var _numStars=event.params.numStars;
     /* Debo identificar el kudo y contar todos los kudos registrados hasta el momento */
-    let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/numStars');
+    let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/statRating/');
 
-    return collectionRef.transaction(current => {
+    collectionRef.child('users').transaction(current => {
+      if (event.data.exists() && !event.data.previous.exists()) {
+        console.info('Condicion 1 - USER: ' + event.data.val());
+        return (current || 0) + 1;
+      }
+      else if (!event.data.exists() && event.data.previous.exists()) {
+        console.info('Condicion 2 - USER: ' + event.data.val());
+        return (current || 0) - 1;
+      }
+    });
+
+    return collectionRef.child('total').transaction(current => {
         if (event.data.exists() && !event.data.previous.exists()) {
-          return (current || 0) + _numStars;
+          console.info('Condicion 1 - Actual: ' + event.data.val());
+          return (current || 0) + event.data.val();
         }
         else if (!event.data.exists() && event.data.previous.exists()) {
-          console.info(event.data.previous);
-          return (current || 0) - _numStars;
+          console.info('Condicion 2 - Antes: ' + event.data.previous.val());
+          return (current || 0) - event.data.previous.val();
         }
+        else if (event.data.exists() && event.data.previous.exists()) {
+          console.info('Condicion 3 - Antes :' + event.data.previous.val());
+          console.info('Condicion 3 - Actual: ' + event.data.val());
+          return (current || 0) - event.data.previous.val() + event.data.val();
+        } 
       } 
     ).then(()=> {console.log('Contador RATING actualizado')});
 });
 
-
-        /*
-        let collectionRef = admin.database().ref('/events/{eventID}/blocks/{blockID}/{cardID}');
-        let countRef = collectionRef.parent.child('stats/comments');
-      
-        return createThumbnail(profilePictureSnapshot.val())
-        .then(url => {
-          return eventSnapshot.ref.update({ profileThumbnail: url });
-        });
-
-        // Return the promise from countRef.transaction() so our function 
-        // waits for this async event to complete before it exits.
-        return countRef.transaction(current => {
-          if (event.data.exists() && !event.data.previous.exists()) {
-            return (current || 0) + 1;
-          }
-          else if (!event.data.exists() && event.data.previous.exists()) {
-            return (current || 0) - 1;
-          }
-        }).then(() => {
-          console.log('Counter updated.');
-        });
-        */
