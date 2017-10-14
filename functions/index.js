@@ -23,23 +23,63 @@ exports.syncComment = functions.database.ref('/events/{eventID}/users/{userID}/f
     let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/comments');
     if (!eventSnapshot.exists()) {
         collectionRef.child(_userID).remove().then(()=> {console.info('Comentario eliminado');});
+        return;
     }
     return collectionRef.ref.child(_userID).set(eventSnapshot.val()).then(()=>{console.info('Comentario actualizado');});     
 });
-exports.syncKudo = functions.database.ref('/events/{eventID}/users/{userID}/feedback/{blockID}/{cardID}/kudos')
+exports.syncKudo = functions.database.ref('/events/{eventID}/users/{userID}/feedback/{blockID}/{cardID}/kudos/{kudoID}')
 .onWrite(event => {
     var eventSnapshot = event.data;
     console.info("eventID: " + event.params.eventID); 
     console.info("blockID: " + event.params.blockID);
     console.info("cardID:  " + event.params.cardID);
+    console.info("kudoID:  " + event.params.kudoID);
     var _eventID=event.params.eventID;
     var _blockID=event.params.blockID;
     var _cardID=event.params.cardID;
     var _userID=event.params.userID;
+    var _kudoID=event.params.kudoID;
     /* Debo identificar el kudo y contar todos los kudos registrados hasta el momento */
+    let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/kudos/'+ _kudoID);
+
+    return collectionRef.transaction(current => {
+        if (event.data.exists() && !event.data.previous.exists()) {
+          return (current || 0) + 1;
+        }
+        else if (!event.data.exists() && event.data.previous.exists()) {
+          return (current || 0) - 1;
+        }
+      } 
+    ).then(()=> {console.log('Contador KUDOS actualizado')});
 });
-exports.syncRating = functions.database.ref('/events/{eventID}/users/{userID}/feedback/{blockID}/{cardID}/rating')
+
+exports.syncRating = functions.database.ref('/events/{eventID}/users/{userID}/feedback/{blockID}/{cardID}/rating/{numStars}')
 .onWrite(event => {
+    console.info("eventID: " + event.params.eventID); 
+    console.info("blockID: " + event.params.blockID);
+    console.info("cardID:  " + event.params.cardID);
+    console.info("kudoID:  " + event.params.kudoID);
+    var _eventID=event.params.eventID;
+    var _blockID=event.params.blockID;
+    var _cardID=event.params.cardID;
+    var _userID=event.params.userID;
+    var _numStars=event.params.numStars;
+    /* Debo identificar el kudo y contar todos los kudos registrados hasta el momento */
+    let collectionRef = admin.database().ref('/events/'+ _eventID +'/blocks/'+ _blockID + '/cards/' + _cardID + '/numStars');
+
+    return collectionRef.transaction(current => {
+        if (event.data.exists() && !event.data.previous.exists()) {
+          return (current || 0) + _numStars;
+        }
+        else if (!event.data.exists() && event.data.previous.exists()) {
+          console.info(event.data.previous);
+          return (current || 0) - _numStars;
+        }
+      } 
+    ).then(()=> {console.log('Contador RATING actualizado')});
+});
+
+
         /*
         let collectionRef = admin.database().ref('/events/{eventID}/blocks/{blockID}/{cardID}');
         let countRef = collectionRef.parent.child('stats/comments');
@@ -62,5 +102,3 @@ exports.syncRating = functions.database.ref('/events/{eventID}/users/{userID}/fe
           console.log('Counter updated.');
         });
         */
-});
-
